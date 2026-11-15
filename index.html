@@ -1,1 +1,105 @@
-<!doctype html><title>Flash Motors</title><h1>Electrify Fleets: coming soon</h1>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fleet electrification assessment | Flash Motors</title>
+<meta name="description" content="Answer a few questions about your vehicles and get a report on what they would cost to run on electricity.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<p class="draft-note" role="note">Prototype. Vehicle prices, ranges and service costs are placeholders until Flash Motors confirms them.</p>
+
+<header class="site-head">
+  <a class="brand" href="#home"><span class="brand-name">Flash Motors</span><span class="brand-product">Electrify Fleets</span></a>
+</header>
+
+<main id="main">
+
+  <section id="view-home" class="view">
+    <div class="hero">
+      <div class="hero-copy">
+        <h1>What would your vehicles cost to run on electricity?</h1>
+        <p class="lede">Tell us how your fleet works, whether that is one van or a hundred. You get a report with the costs, the savings and whether the daily routes are within range.</p>
+        <button class="btn btn-primary" type="button" data-go="interview">Start the assessment</button>
+        <p class="fine">Takes 2 to 10 minutes, depending on how much detail you give.</p>
+      </div>
+
+      <div class="meter" aria-labelledby="meter-title">
+        <h2 id="meter-title">One delivery van, one working day</h2>
+        <label class="meter-control" for="meter-km">
+          <span>Distance driven</span>
+          <output id="meter-km-out" for="meter-km">120 km</output>
+        </label>
+        <input id="meter-km" type="range" min="20" max="250" step="10" value="120">
+        <div class="lanes" aria-live="polite">
+          <div class="lane lane-diesel">
+            <span class="lane-name">Diesel</span>
+            <span class="lane-bar"><i id="bar-diesel"></i></span>
+            <span class="lane-cost" id="cost-diesel"></span>
+          </div>
+          <div class="lane lane-electric">
+            <span class="lane-name">Electric</span>
+            <span class="lane-bar"><i id="bar-electric"></i></span>
+            <span class="lane-cost" id="cost-electric"></span>
+          </div>
+        </div>
+        <p class="meter-total">Over a working year that is <strong id="meter-year"></strong> less spent on energy.</p>
+        <p class="fine" id="meter-basis"></p>
+      </div>
+    </div>
+
+    <div class="explain">
+      <div>
+        <h2>What the report covers</h2>
+        <ul class="plain-list">
+          <li>Fuel and maintenance savings, per vehicle and for the fleet</li>
+          <li>The total cost over the years you keep your vehicles, and when the switch pays for itself</li>
+          <li>Whether each daily route fits within one charge</li>
+          <li>How many chargers you would need and how much power they draw overnight</li>
+          <li>The carbon dioxide your fleet would stop emitting</li>
+        </ul>
+      </div>
+      <div>
+        <h2>If the numbers do not work</h2>
+        <p>The report says so, and names the reason: usually low daily distance or routes longer than one charge. You can use it to decide which vehicles to switch first, or to wait.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-interview" class="view" hidden>
+    <div class="interview">
+      <p class="progress-text" id="progress-text"></p>
+      <div class="progress-track" aria-hidden="true"><i id="progress-bar"></i></div>
+      <form id="step-form" novalidate>
+        <div id="step-body"></div>
+        <p class="form-error" id="form-error" role="alert" hidden></p>
+        <div class="step-actions">
+          <button class="btn btn-quiet" type="button" id="step-back">Back</button>
+          <button class="btn btn-primary" type="submit" id="step-next">Continue</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section id="view-report" class="view" hidden>
+    <div id="report"></div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <p>Flash Motors Company Limited, 5-7 Orchard Rd, Kingston 5, Jamaica</p>
+  <p><a href="tel:+18766765364">+1 (876) 676-5364</a> <a href="mailto:sales@flash-motors.com">sales@flash-motors.com</a></p>
+</footer>
+
+<script src="assets/config.js"></script>
+<script src="assets/calc.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
