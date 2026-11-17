@@ -48,7 +48,7 @@
   function updateMeter() {
     var km = Number($('meter-km').value);
     var van = cfg.vehicleTypes.van;
-    var ev = cfg.models[cfg.models.length - 1];
+    var ev = cfg.models.filter(function (m) { return m.name === cfg.meterModel; })[0] || cfg.models[0];
     var diesel = km * van.litresPer100 / 100 * cfg.fuelPrice.diesel;
     var electric = km * ev.kwhPer100 / 100 * cfg.electricityRate;
     var max = 250 * van.litresPer100 / 100 * cfg.fuelPrice.diesel;
@@ -225,6 +225,7 @@
       route: hasOps ? state.route : 'mixed',
       parking: hasOps ? state.parking : '',
       maintPerVehicle: hasOps ? state.maintPerVehicle : '',
+      payloadKg: hasOps ? state.payloadKg : '',
       keepYears: hasOps ? state.keepYears : '',
       elecRate: multi ? state.elecRate : ''
     };
@@ -269,16 +270,17 @@
       var share = Math.round(g.kmPerDay / g.model.usableRangeKm * 100);
       return '<tr><td data-label="Vehicles"><div>' + plural(g.count, 'vehicle') + '<span class="fine"> ' + esc(g.typeLabel) + ', ' + esc(g.fuelLabel.toLowerCase()) + '</span></div></td>' +
         '<td class="num" data-label="Daily distance">' + whole(g.kmPerDay) + ' km</td>' +
-        '<td data-label="Suggested model">' + esc(g.model.name) + '</td>' +
+        '<td data-label="Suggested model"><div>' + esc(g.model.name) +
+          (g.payloadOk ? '' : '<span class="fine status-fail"> Your load is above its ' + whole(g.model.payloadKg) + ' kg payload</span>') + '</div></td>' +
         '<td data-label="Range check"><div><span class="status status-' + g.range + '">' + RANGE[g.range] + '</span><span class="fine"> Uses ' + share + '% of a charge</span></div></td>' +
         '<td class="num" data-label="Saving per vehicle a year">' + money(g.perVehicle.saving) + '</td></tr>';
     }).join('');
 
     var parkingNote = {
-      depot: 'Vehicles charge overnight at your premises and share chargers.',
-      home: 'Vehicles go home with drivers, so each needs its own charger there.',
+      depot: 'Each vehicle comes with its own charger, installed at your premises.',
+      home: 'Vehicles go home with drivers, so each charger would be installed at a driver\u2019s home.',
       street: 'With street parking, charging needs a depot arrangement or public chargers. We would plan this with you.',
-      '': 'Assumes vehicles charge overnight at your premises and share chargers.'
+      '': 'Assumes each vehicle charges overnight at your premises on its own charger.'
     }[input.parking || ''];
 
     var fuelsUsed = {};
@@ -301,10 +303,12 @@
     ];
     Object.keys(modelsUsed).forEach(function (n) {
       var m = modelsUsed[n];
-      assumptions.push([n, m.kwhPer100 + ' kWh per 100 km, ' + m.usableRangeKm + ' km usable range, ' + money(m.price) +
-        ' against ' + money(m.dieselEquivalentPrice) + ' for a diesel equivalent' + placeholder]);
+      assumptions.push([n, m.batteryKwh + ' kWh battery, ' + m.kwhPer100 + ' kWh per 100 km, ' + m.usableRangeKm + ' km usable range, ' +
+        whole(m.payloadKg) + ' kg payload, ' + money(m.price) + ' against ' + money(m.dieselEquivalentPrice) + ' for a diesel equivalent' +
+        (m.pending ? ' <span class="flag">to confirm: ' + esc(m.pending) + '</span>' : '')]);
     });
-    assumptions.push(['Charger', cfg.chargerKw + ' kW, ' + money(cfg.chargerCost) + ' installed' + placeholder]);
+    assumptions.push(['Real-world allowance', 'Range set at ' + Math.round(cfg.realWorldFactor * 100) + '% of the official test figure, with energy use raised to match']);
+    assumptions.push(['Charger', 'One ' + cfg.chargerKw + ' kW charger per vehicle, included in the vehicle price']);
 
     var depthName = { quick: 'Quick', standard: 'Standard', detailed: 'Detailed' }[state.depth];
     var salesRows = [
@@ -345,17 +349,19 @@
         seg('seg-buy', t.evPurchase, max) + seg('seg-energy', yrs * t.annualEnergy, max) + seg('seg-maint', yrs * t.annualEvMaint, max) + seg('seg-charger', t.chargerCost, max) +
       '</span><span class="stack-total">' + money(t.evTotal) + '</span></div></div>' +
       '<ul class="legend"><li><i class="seg-buy"></i>Purchase</li><li><i class="seg-energy"></i>Fuel or electricity</li>' +
-      '<li><i class="seg-maint"></i>Maintenance</li><li><i class="seg-charger"></i>Chargers</li></ul></div>' +
+      '<li><i class="seg-maint"></i>Maintenance</li>' + (t.chargerCost > 0 ? '<li><i class="seg-charger"></i>Chargers</li>' : '') + '</ul></div>' +
 
       '<div class="block"><h2>Your vehicles and their routes</h2>' +
       '<div class="table-wrap"><table class="routes"><thead><tr><th>Vehicles</th><th class="num">Daily distance</th><th>Suggested model</th><th>Range check</th><th class="num">Saving per vehicle a year</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div></div>' +
 
       '<div class="block two-col"><div><h2>Charging</h2><dl class="facts">' +
-      '<div><dt>Chargers needed</dt><dd>' + t.chargers + ' at ' + cfg.chargerKw + ' kW</dd></div>' +
+      '<div><dt>Chargers included with the vehicles</dt><dd>' + t.chargers + ' at ' + cfg.chargerKw + ' kW</dd></div>' +
+      '<div><dt>Longest overnight charge</dt><dd>' + t.longestCharge.toFixed(1) + ' hours</dd></div>' +
       '<div><dt>Energy used per night</dt><dd>' + whole(t.nightlyKwh) + ' kWh</dd></div>' +
       '<div><dt>Electricity cost per night</dt><dd>' + money(t.nightlyKwh * rate) + '</dd></div></dl>' +
-      '<p class="fine" style="margin-top:1rem">' + esc(parkingNote) + '</p></div>' +
+      '<p class="fine" style="margin-top:1rem">' + esc(parkingNote) +
+      (t.longestCharge > cfg.overnightHours ? ' Some vehicles need longer than ' + cfg.overnightHours + ' hours on a ' + cfg.chargerKw + ' kW charger, so they would need a faster charger or a daytime top-up.' : '') + '</p></div>' +
       '<div><h2>What this report leaves out</h2><p class="fine" style="margin-top:1rem;font-size:1rem">Loan interest, resale value, insurance, duties and incentives are not included. ' +
       'Range figures are estimates for loaded vehicles with air conditioning on. A site visit confirms the electrical supply and the charger count.</p></div></div>' +
 

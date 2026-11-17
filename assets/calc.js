@@ -15,16 +15,29 @@
     return 'fail';
   }
 
-  // Smallest model that passes; failing that, the smallest marginal one;
-  // failing that, the longest-range model.
-  function pickModel(kmPerDay, cfg) {
+  // Models that can replace this vehicle type, in order of preference.
+  function candidates(typeKey, cfg) {
+    var type = cfg.vehicleTypes[typeKey] || cfg.vehicleTypes.van;
+    var list = [];
+    type.bodies.forEach(function (body) {
+      cfg.models.forEach(function (m) { if (m.body === body) list.push(m); });
+    });
+    return list.length ? list : cfg.models.slice();
+  }
+
+  // Among models that carry the load: the first that passes the range check;
+  // failing that, the first marginal one; failing that, the longest-range one.
+  function pickModel(kmPerDay, payloadKg, typeKey, cfg) {
+    var all = candidates(typeKey, cfg);
+    var fits = payloadKg > 0 ? all.filter(function (m) { return m.payloadKg >= payloadKg; }) : all;
+    var pool = fits.length ? fits : all;
     var order = ['pass', 'marginal'];
     for (var s = 0; s < order.length; s++) {
-      for (var i = 0; i < cfg.models.length; i++) {
-        if (rangeStatus(kmPerDay, cfg.models[i], cfg) === order[s]) return cfg.models[i];
+      for (var i = 0; i < pool.length; i++) {
+        if (rangeStatus(kmPerDay, pool[i], cfg) === order[s]) return pool[i];
       }
     }
-    return cfg.models[cfg.models.length - 1];
+    return pool.reduce(function (best, m) { return m.usableRangeKm > best.usableRangeKm ? m : best; });
   }
 
   function assessGroup(g, input, cfg) {
@@ -43,7 +56,8 @@
     // If the operator gave their own spend, back out litres from it for CO2.
     if (statedFuelCost) litres = statedFuelCost / cfg.fuelPrice[fuel];
 
-    var model = pickModel(kmPerDay, cfg);
+    var payload = num(input.payloadKg, 0);
+    var model = pickModel(kmPerDay, payload, g.type, cfg);
     var rate = num(input.elecRate, cfg.electricityRate);
     var kwh = annualKm * model.kwhPer100 / 100 * route.electric;
     var energyCost = kwh * rate;
@@ -64,6 +78,8 @@
       fuelCostSource: statedFuelCost ? 'stated' : 'estimated',
       model: model,
       range: rangeStatus(kmPerDay, model, cfg),
+      payloadOk: !(payload > model.payloadKg),
+      chargeOk: chargeHours <= cfg.overnightHours,
       perVehicle: {
         fuelCost: fuelCost,
         energyCost: energyCost,
@@ -104,6 +120,7 @@
     });
 
     t.chargers = t.vehicles ? Math.max(1, Math.ceil(t.chargerHours / cfg.overnightHours)) : 0;
+    if (cfg.chargerIncluded) t.chargers = t.vehicles;
     // Vehicles that go home with drivers each need their own charger.
     if (input.parking === 'home') t.chargers = t.vehicles;
     t.chargerCost = t.chargers * cfg.chargerCost;
@@ -113,6 +130,7 @@
     t.evTotal = t.evPurchase + t.chargerCost + years * (t.annualEnergy + t.annualEvMaint);
     t.periodSaving = t.dieselTotal - t.evTotal;
 
+    t.longestCharge = groups.reduce(function (h, g) { return Math.max(h, g.perVehicle.chargeHours); }, 0);
     var anyFail = groups.some(function (g) { return g.range === 'fail'; });
     var anyMarginal = groups.some(function (g) { return g.range === 'marginal'; });
     var verdict, reason;
