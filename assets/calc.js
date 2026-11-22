@@ -116,7 +116,7 @@
       vehicles: 0, annualSaving: 0, annualFuel: 0, annualEnergy: 0,
       annualDieselMaint: 0, annualEvMaint: 0,
       dieselPurchase: 0, evPurchase: 0, chargerHours: 0, nightlyKwh: 0,
-      co2Avoided: 0, years: years
+      co2Avoided: 0, uncompared: 0, years: years
     };
     groups.forEach(function (g) {
       var p = g.perVehicle, n = g.count;
@@ -126,7 +126,8 @@
       t.annualEnergy += n * p.energyCost;
       t.annualDieselMaint += n * p.dieselMaint;
       t.annualEvMaint += n * p.evMaint;
-      t.dieselPurchase += n * g.model.dieselEquivalentPrice;
+      t.dieselPurchase += n * (g.model.noComparison ? g.model.price : g.model.dieselEquivalentPrice);
+      if (g.model.noComparison) t.uncompared += n;
       t.evPurchase += n * g.model.price;
       t.chargerHours += n * p.chargeHours;
       t.nightlyKwh += n * p.nightlyKwh;
@@ -161,8 +162,12 @@
     t.longestCharge = groups.reduce(function (h, g) { return Math.max(h, g.perVehicle.chargeHours); }, 0);
     var anyFail = groups.some(function (g) { return g.range === 'fail'; });
     var anyMarginal = groups.some(function (g) { return g.range === 'marginal'; });
+    t.allUncompared = t.vehicles > 0 && t.uncompared === t.vehicles;
     var verdict, reason;
-    if (t.paybackYears === null) {
+    if (t.allUncompared && t.annualSaving > 0) {
+      verdict = 'look';
+      reason = 'Running costs are lower on electricity. There is no direct diesel equivalent to compare the purchase price with, so our team will price that with you.';
+    } else if (t.paybackYears === null) {
       verdict = 'notyet';
       reason = 'At this mileage, running costs would not be lower on electricity.';
     } else if (anyFail) {

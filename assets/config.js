@@ -40,6 +40,8 @@
     // conditioning on. Applied to range, and energy use is raised to match.
     realWorldFactor: 0.75,
 
+    // Diesel comparison prices are starting prices for base manual models; the
+    // Farizons are fully equipped. The report says so.
     // Electric models, smallest first. Prices are Flash Motors list prices in J$,
     // including GCT, on the road, with one charger per vehicle supplied and installed.
     // "pending" lists what is still to be confirmed; it shows in the report.
@@ -49,31 +51,31 @@
         batteryKwh: 66.67, wltpRangeKm: 328, wltpKwhPer100: 22.4,
         payloadKg: 1208, chargerKw: 7,
         price: 6500000,
-        dieselEquivalentPrice: 5500000,               // PLACEHOLDER
-        pending: 'diesel comparison price'
+        dieselEquivalent: 'Toyota Hiace panel van', dieselEquivalentPrice: 6500000,
+        pending: ''
       },
       {
         name: 'Farizon SuperVAN', body: 'van',        // L1H1, 6.95 m3, 83 kWh CATL LFP
         batteryKwh: 82.88, wltpRangeKm: 376, wltpKwhPer100: 24.4,
         payloadKg: 1300, chargerKw: 7,
         price: 8500000,
-        dieselEquivalentPrice: 7000000,               // PLACEHOLDER
-        pending: 'diesel comparison price'
+        dieselEquivalent: 'Toyota Hiace panel van', dieselEquivalentPrice: 6500000,
+        pending: ''
       },
       {
         name: 'Farizon F3E', body: 'lighttruck',      // box body, 73 kWh
         batteryKwh: 72.85, wltpRangeKm: 300, wltpKwhPer100: 24.3, // energy use derived from battery and range
         payloadKg: 2000, chargerKw: 7,
         price: 7300000,
-        dieselEquivalentPrice: 6000000,               // PLACEHOLDER
-        pending: 'diesel comparison price'
+        dieselEquivalent: 'Foton Miller box truck', dieselEquivalentPrice: 6000000,
+        pending: ''
       },
       {
         name: 'Farizon H9E', body: 'truck',           // 6 t, 100 kWh, registered at 5,995 kg
         batteryKwh: 100.46, wltpRangeKm: 330, wltpKwhPer100: 30.4, // energy use derived from battery and range
         payloadKg: 2615, chargerKw: 11,
         price: 10500000,
-        dieselEquivalentPrice: 8500000,               // PLACEHOLDER
+        dieselEquivalent: '6-tonne diesel box truck', dieselEquivalentPrice: 8500000, // PLACEHOLDER
         pending: 'diesel comparison price'
       },
       {
@@ -81,16 +83,17 @@
         batteryKwh: 66.67, wltpRangeKm: 328, wltpKwhPer100: 22.4, // assumed same as cargo V7E
         payloadKg: 0, chargerKw: 7,
         price: 7500000,                               // cargo price plus J$1.0M
-        dieselEquivalentPrice: 5500000,               // PLACEHOLDER
-        pending: 'passenger range, diesel comparison price'
+        noComparison: true,                           // no direct diesel equivalent
+        dieselEquivalent: '', dieselEquivalentPrice: 7500000,
+        pending: 'passenger range'
       },
       {
         name: 'Farizon SuperVAN 15-seat', body: 'passenger', seats: 15,
         batteryKwh: 82.88, wltpRangeKm: 376, wltpKwhPer100: 24.4, // assumed same as cargo SuperVAN
         payloadKg: 0, chargerKw: 7,
         price: 11000000,                              // cargo price plus J$2.5M
-        dieselEquivalentPrice: 7500000,               // PLACEHOLDER
-        pending: 'passenger range, diesel comparison price'
+        dieselEquivalent: 'Toyota Hiace Commuter', dieselEquivalentPrice: 8000000,
+        pending: 'passenger range'
       }
     ],
     meterModel: 'Farizon SuperVAN',
@@ -112,7 +115,7 @@
     // Electric: scheduled servicing is bundled for the first 5 years; wear and
     // tear (tyres, brake pads, wipers, repairs) is not.
     serviceBundleYears: 5,
-    evServiceAfterBundle: 150000, // PLACEHOLDER, servicing cost per year after the bundle ends
+    evServiceAfterBundle: 100000, // servicing cost per year after the bundle ends
 
     // Charging. Each vehicle comes with its own charger (chargerKw on the model),
     // supplied and installed in the vehicle price.

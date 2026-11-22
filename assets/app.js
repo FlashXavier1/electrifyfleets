@@ -263,7 +263,8 @@
     else if (r.verdict === 'look') headline = 'Electric could save about ' + money(t.annualSaving) + ' a year, with points to check first.';
     else headline = 'Electric does not pay for itself for this fleet yet.';
 
-    var payback = t.paybackYears === null ? 'Not reached'
+    var payback = t.allUncompared ? 'Not compared'
+      : t.paybackYears === null ? 'Not reached'
       : t.paybackYears < 0.1 ? 'From day one'
       : t.paybackYears > 20 ? 'Over 20 years'
       : t.paybackYears.toFixed(1) + ' years';
@@ -323,19 +324,21 @@
       ['Fuel price', fuelLine + (stated ? ' (your own fuel spend used where given)' : '')],
       ['Electricity price', 'J$' + rate + ' a kWh' + (rate !== cfg.electricityRate ? ' (your figure)' : '')],
       ['Working year', cfg.weeksPerYear + ' weeks'],
-      ['Vehicle prices', 'Flash Motors list prices, including GCT, on the road'],
+      ['Vehicle prices', 'Flash Motors list prices, including GCT, on the road. Farizon prices are fully equipped; diesel prices are starting prices for base manual models, so the like-for-like price gap is smaller than shown'],
       ['Diesel maintenance', Number(input.maintPerVehicle) > 0
         ? money(Number(input.maintPerVehicle)) + ' a vehicle a year (your figure)'
         : money(cfg.dieselMaintenance) + ' a year servicing and repairs for a vehicle doing ' + whole(cfg.maintenanceReferenceKm) + ' km, scaled to your distance'],
       ['Electric maintenance', 'Scheduled servicing included for ' + cfg.serviceBundleYears + ' years' +
-        (yrs > cfg.serviceBundleYears ? ', then ' + money(cfg.evServiceAfterBundle) + ' a year' + placeholder : '')],
+        (yrs > cfg.serviceBundleYears ? ', then ' + money(cfg.evServiceAfterBundle) + ' a year' : '')],
       ['Tyres, brake pads and wipers', 'Left out of both sides, as they cost about the same'],
       ['Period compared', plural(yrs, 'year')]
     ];
     Object.keys(modelsUsed).forEach(function (n) {
       var m = modelsUsed[n];
       assumptions.push([n, m.batteryKwh + ' kWh battery, ' + m.kwhPer100 + ' kWh per 100 km, ' + m.usableRangeKm + ' km usable range, ' +
-        (m.body === 'passenger' ? m.seats + ' seats, ' : whole(m.payloadKg) + ' kg payload, ') + money(m.price) + ' against ' + money(m.dieselEquivalentPrice) + ' for a diesel equivalent' +
+        (m.body === 'passenger' ? m.seats + ' seats, ' : whole(m.payloadKg) + ' kg payload, ') + money(m.price) +
+        (m.noComparison ? '; no direct diesel equivalent, so its purchase price is not compared'
+          : ' against ' + money(m.dieselEquivalentPrice) + ' for a ' + esc(m.dieselEquivalent || 'diesel equivalent')) +
         (m.pending ? ' <span class="flag">to confirm: ' + esc(m.pending) + '</span>' : '')]);
     });
     assumptions.push(['Real-world allowance', 'Range set at ' + Math.round(cfg.realWorldFactor * 100) + '% of the official test figure, with energy use raised to match']);
