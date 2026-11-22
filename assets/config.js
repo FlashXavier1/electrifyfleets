@@ -8,7 +8,7 @@
  */
 (function (root) {
   var CONFIG = {
-    lastReviewed: '2026-11-17',
+    lastReviewed: '2026-11-22',
 
     // Pump prices, J$ per litre.
     // Petrojam ex-refinery schedule of 12 Nov 2026 plus about J$20 retail markup.
@@ -21,11 +21,12 @@
     // Fuel use of the vehicle being replaced, litres per 100 km. Assumed.
     // "bodies" lists which electric body styles can replace it, first choice first.
     vehicleTypes: {
-      van:      { label: 'Panel van',                    litresPer100: 10, bodies: ['van'] },
-      pickup:   { label: 'Pickup',                       litresPer100: 11, bodies: ['lighttruck', 'van'] },
-      truck:    { label: 'Small truck (up to 3.5 t)',    litresPer100: 13, bodies: ['lighttruck', 'truck'] },
-      bigtruck: { label: 'Medium truck (4.5 to 6 t)',    litresPer100: 18, bodies: ['truck'] },
-      other:    { label: 'Other',                        litresPer100: 10, bodies: ['van', 'lighttruck', 'truck'] }
+      van:       { label: 'Panel van',                    litresPer100: 10, bodies: ['van'] },
+      passenger: { label: 'Passenger van or minibus',     litresPer100: 11, bodies: ['passenger'] },
+      pickup:    { label: 'Pickup',                       litresPer100: 11, bodies: ['lighttruck', 'van'] },
+      truck:     { label: 'Small truck (up to 4.3 t)',    litresPer100: 13, bodies: ['lighttruck', 'truck'] },
+      bigtruck:  { label: 'Medium truck (4.5 to 6 t)',    litresPer100: 18, bodies: ['truck'] },
+      other:     { label: 'Other',                        litresPer100: 10, bodies: ['van', 'lighttruck', 'truck'] }
     },
 
     // Route profile multipliers on energy use. Assumed.
@@ -35,47 +36,61 @@
       highway: { label: 'Highway and hills',  fuel: 1.05, electric: 1.15 }
     },
 
-    // Share of the official (WLTP) range a loaded vehicle achieves in Jamaican
-    // conditions. Applied to both range and energy use. Assumed until real-world
-    // test results are available.
-    realWorldFactor: 0.8,
+    // Share of the official range a loaded vehicle achieves in Jamaica with air
+    // conditioning on. Applied to range, and energy use is raised to match.
+    realWorldFactor: 0.75,
 
-    // Electric models, smallest first. Prices are Flash Motors list prices (J$)
-    // and include one 7 kW charger per vehicle.
-    // wltpRangeKm and wltpKwhPer100 come from the Farizon spec sheets where the
-    // sheet gives them. "pending" lists what is still to be confirmed.
+    // Electric models, smallest first. Prices are Flash Motors list prices in J$,
+    // including GCT, on the road, with one charger per vehicle supplied and installed.
+    // "pending" lists what is still to be confirmed; it shows in the report.
     models: [
       {
-        name: 'Farizon V7E', body: 'van',
+        name: 'Farizon V7E', body: 'van',            // 6.95 m3, 67 kWh CATL LFP
         batteryKwh: 66.67, wltpRangeKm: 328, wltpKwhPer100: 22.4,
-        payloadKg: 1208,                 // GVW 3150 less kerb weight 1942
+        payloadKg: 1208, chargerKw: 7,
         price: 6500000,
-        dieselEquivalentPrice: 5500000,  // PLACEHOLDER
-        pending: 'battery size (50 or 67 kWh), diesel comparison price'
+        dieselEquivalentPrice: 5500000,               // PLACEHOLDER
+        pending: 'diesel comparison price'
       },
       {
-        name: 'Farizon SuperVAN', body: 'van',  // L1H1, 6.95 cubic metres
+        name: 'Farizon SuperVAN', body: 'van',        // L1H1, 6.95 m3, 83 kWh CATL LFP
         batteryKwh: 82.88, wltpRangeKm: 376, wltpKwhPer100: 24.4,
-        payloadKg: 1300,
+        payloadKg: 1300, chargerKw: 7,
         price: 8500000,
-        dieselEquivalentPrice: 7000000,  // PLACEHOLDER
-        pending: 'battery size (49, 66, 67 or 83 kWh), diesel comparison price'
+        dieselEquivalentPrice: 7000000,               // PLACEHOLDER
+        pending: 'diesel comparison price'
       },
       {
-        name: 'Farizon F3E', body: 'lighttruck',
-        batteryKwh: 72.85, wltpRangeKm: 240, wltpKwhPer100: 30,  // PLACEHOLDER, not on the spec sheet
-        payloadKg: 1500,                 // PLACEHOLDER, not on the spec sheet
+        name: 'Farizon F3E', body: 'lighttruck',      // box body, 73 kWh
+        batteryKwh: 72.85, wltpRangeKm: 300, wltpKwhPer100: 24.3, // energy use derived from battery and range
+        payloadKg: 2000, chargerKw: 7,
         price: 7300000,
-        dieselEquivalentPrice: 6000000,  // PLACEHOLDER
-        pending: 'range, energy use, payload, diesel comparison price'
+        dieselEquivalentPrice: 6000000,               // PLACEHOLDER
+        pending: 'diesel comparison price'
       },
       {
-        name: 'Farizon H9E', body: 'truck',     // 6 t, 100.46 kWh
-        batteryKwh: 100.46, wltpRangeKm: 250, wltpKwhPer100: 40, // PLACEHOLDER, not on the spec sheet
-        payloadKg: 2615,                 // 5995 kg GVW less 3380 kg kerb weight with cargo box
+        name: 'Farizon H9E', body: 'truck',           // 6 t, 100 kWh, registered at 5,995 kg
+        batteryKwh: 100.46, wltpRangeKm: 330, wltpKwhPer100: 30.4, // energy use derived from battery and range
+        payloadKg: 2615, chargerKw: 11,
         price: 10500000,
-        dieselEquivalentPrice: 8500000,  // PLACEHOLDER
-        pending: 'range, energy use, diesel comparison price'
+        dieselEquivalentPrice: 8500000,               // PLACEHOLDER
+        pending: 'diesel comparison price'
+      },
+      {
+        name: 'Farizon V7E 7-seat', body: 'passenger', seats: 7,
+        batteryKwh: 66.67, wltpRangeKm: 328, wltpKwhPer100: 22.4, // assumed same as cargo V7E
+        payloadKg: 0, chargerKw: 7,
+        price: 6500000,                               // PLACEHOLDER, cargo price used
+        dieselEquivalentPrice: 5500000,               // PLACEHOLDER
+        pending: 'passenger price and range, diesel comparison price'
+      },
+      {
+        name: 'Farizon SuperVAN 15-seat', body: 'passenger', seats: 15,
+        batteryKwh: 82.88, wltpRangeKm: 376, wltpKwhPer100: 24.4, // assumed same as cargo SuperVAN
+        payloadKg: 0, chargerKw: 7,
+        price: 8500000,                               // PLACEHOLDER, cargo price used
+        dieselEquivalentPrice: 7500000,               // PLACEHOLDER
+        pending: 'passenger price and range, diesel comparison price'
       }
     ],
     meterModel: 'Farizon SuperVAN',
@@ -85,14 +100,27 @@
     rangeMarginal: 1.0,
 
     // Maintenance, J$ per vehicle per year.
-    dieselMaintenance: 250000,    // PLACEHOLDER
-    evMaintenanceShare: 0.5,      // electric cost as a share of diesel. Assumed.
+    dieselMaintenance: 500000,
+    // The maintenance figures above are for a vehicle doing this many km a year.
+    // Vehicles doing more or less are scaled in proportion, within these limits.
+    maintenanceReferenceKm: 30000,   // Assumed: 100 km a day, 300 days
+    maintenanceScaleMin: 0.3,
+    maintenanceScaleMax: 2,
+    // Electric: scheduled servicing is bundled for the first 5 years; wear and
+    // tear (tyres, brake pads, wipers, repairs) is not.
+    serviceBundleYears: 5,
+    evWearAndTear: 75000,
+    evServiceAfterBundle: 150000, // PLACEHOLDER, servicing cost per year after the bundle ends
 
-    // Charging. One charger per vehicle is included in the vehicle price.
-    chargerKw: 7,
+    // Charging. Each vehicle comes with its own charger (chargerKw on the model),
+    // supplied and installed in the vehicle price.
     chargerIncluded: true,
-    chargerCost: 0,               // extra cost per charger on top of the vehicle price
+    chargerCost: 0,
+    fasterChargers: '22 kW AC or DC from 25 kW, quoted by our team',
     overnightHours: 10,
+
+    // Financing example shown in the report.
+    finance: { label: 'JN special rate', rate: 0.0799, years: 10, deposit: 0 },
 
     // Working pattern.
     weeksPerYear: 50,

@@ -27,9 +27,12 @@
 
   // Among models that carry the load: the first that passes the range check;
   // failing that, the first marginal one; failing that, the longest-range one.
-  function pickModel(kmPerDay, payloadKg, typeKey, cfg) {
+  function pickModel(kmPerDay, payloadKg, typeKey, cfg, seats) {
     var all = candidates(typeKey, cfg);
-    var fits = payloadKg > 0 ? all.filter(function (m) { return m.payloadKg >= payloadKg; }) : all;
+    var fits = all.filter(function (m) {
+      if (m.body === 'passenger') return !(seats > 0) || (m.seats || 0) >= seats;
+      return !(payloadKg > 0) || m.payloadKg >= payloadKg;
+    });
     var pool = fits.length ? fits : all;
     var order = ['pass', 'marginal'];
     for (var s = 0; s < order.length; s++) {
@@ -57,16 +60,26 @@
     if (statedFuelCost) litres = statedFuelCost / cfg.fuelPrice[fuel];
 
     var payload = num(input.payloadKg, 0);
-    var model = pickModel(kmPerDay, payload, g.type, cfg);
+    var seats = num(g.seats, 0);
+    var model = pickModel(kmPerDay, payload, g.type, cfg, seats);
     var rate = num(input.elecRate, cfg.electricityRate);
     var kwh = annualKm * model.kwhPer100 / 100 * route.electric;
     var energyCost = kwh * rate;
 
-    var dieselMaint = num(input.maintPerVehicle, cfg.dieselMaintenance);
-    var evMaint = dieselMaint * cfg.evMaintenanceShare;
+    // Maintenance scales with distance unless the operator gave their own figure.
+    var ownMaint = num(input.maintPerVehicle, 0);
+    var scale = ownMaint ? 1 : Math.min(cfg.maintenanceScaleMax,
+      Math.max(cfg.maintenanceScaleMin, annualKm / cfg.maintenanceReferenceKm));
+    var dieselMaint = ownMaint || cfg.dieselMaintenance * scale;
+    // Average over the period: wear and tear every year, plus servicing for any
+    // years beyond the bundled service package.
+    var years = num(input.keepYears, cfg.defaultYears);
+    var unbundled = Math.max(0, years - cfg.serviceBundleYears);
+    var evScale = ownMaint ? ownMaint / cfg.dieselMaintenance : scale;
+    var evMaint = (cfg.evWearAndTear + cfg.evServiceAfterBundle * unbundled / years) * evScale;
 
     var nightlyKwh = kmPerDay * model.kwhPer100 / 100 * route.electric;
-    var chargeHours = nightlyKwh / cfg.chargerKw;
+    var chargeHours = nightlyKwh / (model.chargerKw || 7);
 
     return {
       count: count,
@@ -78,7 +91,8 @@
       fuelCostSource: statedFuelCost ? 'stated' : 'estimated',
       model: model,
       range: rangeStatus(kmPerDay, model, cfg),
-      payloadOk: !(payload > model.payloadKg),
+      payloadOk: model.body === 'passenger' ? !(seats > (model.seats || 0)) : !(payload > model.payloadKg),
+      seats: seats,
       chargeOk: chargeHours <= cfg.overnightHours,
       perVehicle: {
         fuelCost: fuelCost,
@@ -129,6 +143,20 @@
     t.dieselTotal = t.dieselPurchase + years * (t.annualFuel + t.annualDieselMaint);
     t.evTotal = t.evPurchase + t.chargerCost + years * (t.annualEnergy + t.annualEvMaint);
     t.periodSaving = t.dieselTotal - t.evTotal;
+
+    // Financing example: the electric fleet against a diesel fleet on the same terms.
+    var f = cfg.finance;
+    function monthly(principal) {
+      var r = f.rate / 12, n = f.years * 12;
+      return principal <= 0 ? 0 : r ? principal * r / (1 - Math.pow(1 + r, -n)) : principal / n;
+    }
+    t.finance = {
+      evPayment: monthly(t.evPurchase * (1 - f.deposit)),
+      dieselPayment: monthly(t.dieselPurchase * (1 - f.deposit)),
+      monthlySaving: t.annualSaving / 12
+    };
+    t.finance.extraPayment = t.finance.evPayment - t.finance.dieselPayment;
+    t.finance.net = t.finance.monthlySaving - t.finance.extraPayment;
 
     t.longestCharge = groups.reduce(function (h, g) { return Math.max(h, g.perVehicle.chargeHours); }, 0);
     var anyFail = groups.some(function (g) { return g.range === 'fail'; });

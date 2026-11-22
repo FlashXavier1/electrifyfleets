@@ -24,7 +24,7 @@
 
   // ---------- state ----------
   function newGroup() {
-    return { count: '', type: 'van', fuel: 'diesel', kmPerDay: '', daysPerWeek: String(cfg.defaultDaysPerWeek), fuelSpendMonthly: '' };
+    return { count: '', type: 'van', fuel: 'diesel', kmPerDay: '', seats: '', daysPerWeek: String(cfg.defaultDaysPerWeek), fuelSpendMonthly: '' };
   }
   var state = {
     depth: 'quick', step: 0, groups: [newGroup()],
@@ -107,7 +107,11 @@
       '<div class="field-pair">' +
       selectField(p + 'type', 'Vehicle type', options(cfg.vehicleTypes, g.type, 'label')) +
       selectField(p + 'fuel', 'Fuel used today', options(cfg.fuelLabel, g.fuel)) +
-      '</div><div class="field-pair">' +
+      '</div>' +
+      (g.type === 'passenger'
+        ? selectField(p + 'seats', 'Passengers carried per vehicle', options({ '': 'Choose', 7: 'Up to 7', 15: '8 to 15' }, String(g.seats)))
+        : '') +
+      '<div class="field-pair">' +
       numberField(p + 'kmPerDay', 'Distance per vehicle per day (km)', g.kmPerDay, 'A typical working day.', 'min="1" step="1"') +
       selectField(p + 'daysPerWeek', 'Working days per week', options({ 5: '5 days', 6: '6 days', 7: '7 days' }, String(g.daysPerWeek))) +
       '</div>' +
@@ -195,6 +199,7 @@
         var where = list.length > 1 ? ' for group ' + (i + 1) : '';
         var c = Number(g.count), km = Number(g.kmPerDay);
         if (!(c >= 1) || c !== Math.floor(c) || c > 5000) bad('g' + i + '_count', 'Enter the number of vehicles' + where + ', as a whole number of 1 or more.');
+        if (g.type === 'passenger' && !g.seats) bad('g' + i + '_seats', 'Choose how many passengers each vehicle carries' + where + '.');
         if (!(km >= 1) || km > 1000) bad('g' + i + '_kmPerDay', 'Enter the daily distance' + where + ' in kilometres, between 1 and 1,000.');
       });
     }
@@ -271,7 +276,9 @@
       return '<tr><td data-label="Vehicles"><div>' + plural(g.count, 'vehicle') + '<span class="fine"> ' + esc(g.typeLabel) + ', ' + esc(g.fuelLabel.toLowerCase()) + '</span></div></td>' +
         '<td class="num" data-label="Daily distance">' + whole(g.kmPerDay) + ' km</td>' +
         '<td data-label="Suggested model"><div>' + esc(g.model.name) +
-          (g.payloadOk ? '' : '<span class="fine status-fail"> Your load is above its ' + whole(g.model.payloadKg) + ' kg payload</span>') + '</div></td>' +
+          (g.payloadOk ? '' : g.model.body === 'passenger'
+            ? '<span class="fine status-fail"> Seats ' + g.model.seats + '; larger options on request</span>'
+            : '<span class="fine status-fail"> Your load is above its ' + whole(g.model.payloadKg) + ' kg payload</span>') + '</div></td>' +
         '<td data-label="Range check"><div><span class="status status-' + g.range + '">' + RANGE[g.range] + '</span><span class="fine"> Uses ' + share + '% of a charge</span></div></td>' +
         '<td class="num" data-label="Saving per vehicle a year">' + money(g.perVehicle.saving) + '</td></tr>';
     }).join('');
@@ -282,6 +289,26 @@
       street: 'With street parking, charging needs a depot arrangement or public chargers. We would plan this with you.',
       '': 'Assumes each vehicle charges overnight at your premises on its own charger.'
     }[input.parking || ''];
+
+    var byKw = {};
+    r.groups.forEach(function (g) { var k = g.model.chargerKw || 7; byKw[k] = (byKw[k] || 0) + g.count; });
+    var chargerLine = Object.keys(byKw).sort(function (a, b) { return a - b; })
+      .map(function (k) { return byKw[k] + ' at ' + k + ' kW'; }).join(', ');
+
+    var f = t.finance, fc = cfg.finance;
+    var financeBlock = '<div class="block"><h2>Financing example</h2>' +
+      '<p>' + esc(fc.label) + ': ' + (fc.rate * 100).toFixed(2) + '% over ' + fc.years + ' years with ' +
+      (fc.deposit ? Math.round(fc.deposit * 100) + '% deposit' : 'no deposit') + ', subject to approval. ' +
+      'The diesel fleet is shown on the same terms for comparison.</p>' +
+      '<dl class="facts" style="max-width:40rem">' +
+      '<div><dt>Monthly payment, electric fleet</dt><dd>' + money(f.evPayment) + '</dd></div>' +
+      '<div><dt>Monthly payment, diesel fleet</dt><dd>' + money(f.dieselPayment) + '</dd></div>' +
+      '<div><dt>Extra payment for electric</dt><dd>' + money(f.extraPayment) + '</dd></div>' +
+      '<div><dt>Monthly saving on fuel and maintenance</dt><dd>' + money(f.monthlySaving) + '</dd></div>' +
+      '<div><dt>' + (f.net >= 0 ? 'Better off each month' : 'Net extra cost each month') + '</dt><dd><strong>' + money(Math.abs(f.net)) + '</strong></dd></div>' +
+      '</dl>' +
+      (f.net >= 0 ? '<p style="margin-top:1rem">On these terms the savings cover the extra payment from the first month.</p>' : '') +
+      '</div>';
 
     var fuelsUsed = {};
     r.groups.forEach(function (g) { fuelsUsed[g.fuelLabel] = true; });
@@ -296,19 +323,24 @@
       ['Fuel price', fuelLine + (stated ? ' (your own fuel spend used where given)' : '')],
       ['Electricity price', 'J$' + rate + ' a kWh' + (rate !== cfg.electricityRate ? ' (your figure)' : '')],
       ['Working year', cfg.weeksPerYear + ' weeks'],
-      ['Diesel maintenance', money(Number(input.maintPerVehicle) > 0 ? Number(input.maintPerVehicle) : cfg.dieselMaintenance) + ' a vehicle a year' +
-        (Number(input.maintPerVehicle) > 0 ? ' (your figure)' : placeholder)],
-      ['Electric maintenance', Math.round(cfg.evMaintenanceShare * 100) + '% of the diesel figure'],
+      ['Vehicle prices', 'Flash Motors list prices, including GCT, on the road'],
+      ['Diesel maintenance', Number(input.maintPerVehicle) > 0
+        ? money(Number(input.maintPerVehicle)) + ' a vehicle a year (your figure)'
+        : money(cfg.dieselMaintenance) + ' a year for a vehicle doing ' + whole(cfg.maintenanceReferenceKm) + ' km, scaled to your distance'],
+      ['Electric maintenance', 'Scheduled servicing included for ' + cfg.serviceBundleYears + ' years. Wear and tear ' + money(cfg.evWearAndTear) +
+        ' a year at the same distance' + (yrs > cfg.serviceBundleYears ? ', plus ' + money(cfg.evServiceAfterBundle) + ' a year servicing after year ' + cfg.serviceBundleYears + placeholder : '')],
       ['Period compared', plural(yrs, 'year')]
     ];
     Object.keys(modelsUsed).forEach(function (n) {
       var m = modelsUsed[n];
       assumptions.push([n, m.batteryKwh + ' kWh battery, ' + m.kwhPer100 + ' kWh per 100 km, ' + m.usableRangeKm + ' km usable range, ' +
-        whole(m.payloadKg) + ' kg payload, ' + money(m.price) + ' against ' + money(m.dieselEquivalentPrice) + ' for a diesel equivalent' +
+        (m.body === 'passenger' ? m.seats + ' seats, ' : whole(m.payloadKg) + ' kg payload, ') + money(m.price) + ' against ' + money(m.dieselEquivalentPrice) + ' for a diesel equivalent' +
         (m.pending ? ' <span class="flag">to confirm: ' + esc(m.pending) + '</span>' : '')]);
     });
     assumptions.push(['Real-world allowance', 'Range set at ' + Math.round(cfg.realWorldFactor * 100) + '% of the official test figure, with energy use raised to match']);
-    assumptions.push(['Charger', 'One ' + cfg.chargerKw + ' kW charger per vehicle, included in the vehicle price']);
+    assumptions.push(['Chargers', 'One per vehicle, supplied and installed in the vehicle price']);
+    assumptions.push(['Financing example', cfg.finance.label + ', ' + (cfg.finance.rate * 100).toFixed(2) + '% over ' + cfg.finance.years + ' years, ' +
+      (cfg.finance.deposit ? Math.round(cfg.finance.deposit * 100) + '% deposit' : 'no deposit') + ', subject to approval']);
 
     var depthName = { quick: 'Quick', standard: 'Standard', detailed: 'Detailed' }[state.depth];
     var salesRows = [
@@ -324,6 +356,8 @@
       ['Solar', state.depth === 'detailed' ? state.solar : 'Not asked'],
       ['Shifts', state.depth === 'detailed' ? state.shifts : 'Not asked'],
       ['Vehicle value at list', money(t.evPurchase)],
+      ['Models suggested', r.groups.map(function (g) { return g.count + ' \u00d7 ' + g.model.name; }).join(', ')],
+      ['Monthly payment on ' + cfg.finance.label, money(t.finance.evPayment)],
       ['Chargers', String(t.chargers)]
     ];
 
@@ -351,18 +385,19 @@
       '<ul class="legend"><li><i class="seg-buy"></i>Purchase</li><li><i class="seg-energy"></i>Fuel or electricity</li>' +
       '<li><i class="seg-maint"></i>Maintenance</li>' + (t.chargerCost > 0 ? '<li><i class="seg-charger"></i>Chargers</li>' : '') + '</ul></div>' +
 
+      financeBlock +
       '<div class="block"><h2>Your vehicles and their routes</h2>' +
       '<div class="table-wrap"><table class="routes"><thead><tr><th>Vehicles</th><th class="num">Daily distance</th><th>Suggested model</th><th>Range check</th><th class="num">Saving per vehicle a year</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div></div>' +
 
       '<div class="block two-col"><div><h2>Charging</h2><dl class="facts">' +
-      '<div><dt>Chargers included with the vehicles</dt><dd>' + t.chargers + ' at ' + cfg.chargerKw + ' kW</dd></div>' +
+      '<div><dt>Chargers included with the vehicles</dt><dd>' + chargerLine + '</dd></div>' +
       '<div><dt>Longest overnight charge</dt><dd>' + t.longestCharge.toFixed(1) + ' hours</dd></div>' +
       '<div><dt>Energy used per night</dt><dd>' + whole(t.nightlyKwh) + ' kWh</dd></div>' +
       '<div><dt>Electricity cost per night</dt><dd>' + money(t.nightlyKwh * rate) + '</dd></div></dl>' +
       '<p class="fine" style="margin-top:1rem">' + esc(parkingNote) +
-      (t.longestCharge > cfg.overnightHours ? ' Some vehicles need longer than ' + cfg.overnightHours + ' hours on a ' + cfg.chargerKw + ' kW charger, so they would need a faster charger or a daytime top-up.' : '') + '</p></div>' +
-      '<div><h2>What this report leaves out</h2><p class="fine" style="margin-top:1rem;font-size:1rem">Loan interest, resale value, insurance, duties and incentives are not included. ' +
+      (t.longestCharge > cfg.overnightHours ? ' Some vehicles need longer than ' + cfg.overnightHours + ' hours on their included charger. Faster chargers are available: ' + esc(cfg.fasterChargers) + '.' : '') + '</p></div>' +
+      '<div><h2>What this report leaves out</h2><p class="fine" style="margin-top:1rem;font-size:1rem">The cost comparison is for cash purchase; loan interest appears only in the financing example. Resale value and insurance are not included. ' +
       'Range figures are estimates for loaded vehicles with air conditioning on. A site visit confirms the electrical supply and the charger count.</p></div></div>' +
 
       '<div class="block"><h2>Figures used</h2><dl class="facts">' +
@@ -414,6 +449,10 @@
     if (!validate()) return;
     if (state.step < steps().length - 1) { state.step++; renderStep(); }
     else renderReport();
+  });
+
+  $('step-form').addEventListener('change', function (e) {
+    if (/^g\d_type$/.test(e.target.name)) { collect(); renderStep(false); $(e.target.id).focus(); }
   });
 
   $('meter-km').addEventListener('input', updateMeter);
