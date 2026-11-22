@@ -80,17 +80,17 @@
         name: 'Farizon V7E 7-seat', body: 'passenger', seats: 7,
         batteryKwh: 66.67, wltpRangeKm: 328, wltpKwhPer100: 22.4, // assumed same as cargo V7E
         payloadKg: 0, chargerKw: 7,
-        price: 6500000,                               // PLACEHOLDER, cargo price used
+        price: 7500000,                               // cargo price plus J$1.0M
         dieselEquivalentPrice: 5500000,               // PLACEHOLDER
-        pending: 'passenger price and range, diesel comparison price'
+        pending: 'passenger range, diesel comparison price'
       },
       {
         name: 'Farizon SuperVAN 15-seat', body: 'passenger', seats: 15,
         batteryKwh: 82.88, wltpRangeKm: 376, wltpKwhPer100: 24.4, // assumed same as cargo SuperVAN
         payloadKg: 0, chargerKw: 7,
-        price: 8500000,                               // PLACEHOLDER, cargo price used
+        price: 11000000,                              // cargo price plus J$2.5M
         dieselEquivalentPrice: 7500000,               // PLACEHOLDER
-        pending: 'passenger price and range, diesel comparison price'
+        pending: 'passenger range, diesel comparison price'
       }
     ],
     meterModel: 'Farizon SuperVAN',
@@ -100,7 +100,10 @@
     rangeMarginal: 1.0,
 
     // Maintenance, J$ per vehicle per year.
-    dieselMaintenance: 500000,
+    // Consumables (tyres, brake pads, wipers) cost about the same for diesel
+    // and electric, so they are left out of both sides.
+    dieselMaintenanceAll: 500000,   // all-in, as given by Flash Motors
+    consumables: 75000,             // per vehicle per year, same for both
     // The maintenance figures above are for a vehicle doing this many km a year.
     // Vehicles doing more or less are scaled in proportion, within these limits.
     maintenanceReferenceKm: 30000,   // Assumed: 100 km a day, 300 days
@@ -109,7 +112,6 @@
     // Electric: scheduled servicing is bundled for the first 5 years; wear and
     // tear (tyres, brake pads, wipers, repairs) is not.
     serviceBundleYears: 5,
-    evWearAndTear: 75000,
     evServiceAfterBundle: 150000, // PLACEHOLDER, servicing cost per year after the bundle ends
 
     // Charging. Each vehicle comes with its own charger (chargerKw on the model),
@@ -137,6 +139,9 @@
       address: '5-7 Orchard Rd, Kingston 5, Jamaica'
     }
   };
+
+  // Diesel servicing and repairs, consumables excluded.
+  CONFIG.dieselMaintenance = CONFIG.dieselMaintenanceAll - CONFIG.consumables;
 
   // Real-world figures derived from the spec values above.
   CONFIG.models.forEach(function (m) {

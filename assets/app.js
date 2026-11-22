@@ -326,9 +326,10 @@
       ['Vehicle prices', 'Flash Motors list prices, including GCT, on the road'],
       ['Diesel maintenance', Number(input.maintPerVehicle) > 0
         ? money(Number(input.maintPerVehicle)) + ' a vehicle a year (your figure)'
-        : money(cfg.dieselMaintenance) + ' a year for a vehicle doing ' + whole(cfg.maintenanceReferenceKm) + ' km, scaled to your distance'],
-      ['Electric maintenance', 'Scheduled servicing included for ' + cfg.serviceBundleYears + ' years. Wear and tear ' + money(cfg.evWearAndTear) +
-        ' a year at the same distance' + (yrs > cfg.serviceBundleYears ? ', plus ' + money(cfg.evServiceAfterBundle) + ' a year servicing after year ' + cfg.serviceBundleYears + placeholder : '')],
+        : money(cfg.dieselMaintenance) + ' a year servicing and repairs for a vehicle doing ' + whole(cfg.maintenanceReferenceKm) + ' km, scaled to your distance'],
+      ['Electric maintenance', 'Scheduled servicing included for ' + cfg.serviceBundleYears + ' years' +
+        (yrs > cfg.serviceBundleYears ? ', then ' + money(cfg.evServiceAfterBundle) + ' a year' + placeholder : '')],
+      ['Tyres, brake pads and wipers', 'Left out of both sides, as they cost about the same'],
       ['Period compared', plural(yrs, 'year')]
     ];
     Object.keys(modelsUsed).forEach(function (n) {

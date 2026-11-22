@@ -76,7 +76,7 @@
     var years = num(input.keepYears, cfg.defaultYears);
     var unbundled = Math.max(0, years - cfg.serviceBundleYears);
     var evScale = ownMaint ? ownMaint / cfg.dieselMaintenance : scale;
-    var evMaint = (cfg.evWearAndTear + cfg.evServiceAfterBundle * unbundled / years) * evScale;
+    var evMaint = cfg.evServiceAfterBundle * unbundled / years * evScale;
 
     var nightlyKwh = kmPerDay * model.kwhPer100 / 100 * route.electric;
     var chargeHours = nightlyKwh / (model.chargerKw || 7);
