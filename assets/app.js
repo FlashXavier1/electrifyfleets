@@ -29,7 +29,7 @@
   var state = {
     depth: 'quick', step: 0, groups: [newGroup()],
     route: 'mixed', parking: 'depot', payloadKg: '', maintPerVehicle: '',
-    finance: 'undecided', keepYears: '', elecRate: '', rateClass: '', solar: 'no', shifts: '1'
+    finance: 'undecided', keepYears: '', elecRate: '', rateClass: '', shifts: '1'
   };
   var STEPS = {
     quick: ['depth', 'fleet'],
@@ -92,7 +92,7 @@
       '<fieldset class="fields"><legend class="fine">Choose one</legend><div class="choice">' +
       radio('depth', 'quick', state.depth, 'Quick', 'Fleet size, distance and fuel', 'About 2 minutes') +
       radio('depth', 'standard', state.depth, 'Standard', 'Adds routes, parking, maintenance and how you buy', 'About 6 minutes') +
-      radio('depth', 'detailed', state.depth, 'Detailed', 'Adds separate vehicle groups, your electricity supply and solar', 'About 10 minutes') +
+      radio('depth', 'detailed', state.depth, 'Detailed', 'Adds separate vehicle groups and your electricity supply', 'About 10 minutes') +
       '</div></fieldset>';
   }
 
@@ -165,7 +165,6 @@
       numberField('elecRate', 'What you pay for electricity (J$ per kWh)', state.elecRate, 'Total bill divided by kWh used. We use J$' + cfg.electricityRate + ' if blank.', 'min="1" step="1"') +
       '<div class="field"><label for="rateClass">JPS rate class<span class="hint">For example Rate 20 or Rate 40, if you know it.</span></label>' +
       '<input type="text" id="rateClass" name="rateClass" maxlength="40" value="' + esc(state.rateClass) + '"></div>' +
-      selectField('solar', 'Solar at your premises', options({ no: 'No solar', have: 'We have solar', interested: 'No, but interested' }, state.solar)) +
       selectField('shifts', 'Shifts per vehicle per day', options({ 1: 'One shift', 2: 'Two or more shifts' }, state.shifts), 'Vehicles on two shifts have less time to charge.') +
       '</div>';
   }
@@ -374,7 +373,6 @@
       ['Typical load', state.depth !== 'quick' && state.payloadKg ? state.payloadKg + ' kg' : 'Not given'],
       ['Buys with', state.depth !== 'quick' ? state.finance : 'Not asked'],
       ['JPS rate class', state.depth === 'detailed' && state.rateClass ? state.rateClass : 'Not given'],
-      ['Solar', state.depth === 'detailed' ? state.solar : 'Not asked'],
       ['Shifts', state.depth === 'detailed' ? state.shifts : 'Not asked'],
       ['Vehicle value at list', money(t.evPurchase)],
       ['Models', r.groups.map(function (g) { return g.count + ' \u00d7 ' + g.model.name + (g.chosenByCustomer ? ' (customer\u2019s choice)' : ''); }).join(', ')],

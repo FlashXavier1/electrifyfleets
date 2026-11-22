@@ -23,7 +23,6 @@
     vehicleTypes: {
       van:       { label: 'Panel van',                    litresPer100: 10, bodies: ['van'] },
       passenger: { label: 'Passenger van or minibus',     litresPer100: 11, bodies: ['passenger'] },
-      pickup:    { label: 'Pickup',                       litresPer100: 11, bodies: ['lighttruck', 'van'] },
       truck:     { label: 'Small truck (up to 4.3 t)',    litresPer100: 13, bodies: ['lighttruck', 'truck'] },
       bigtruck:  { label: 'Medium truck (4.5 to 6 t)',    litresPer100: 18, bodies: ['truck'] },
       other:     { label: 'Other',                        litresPer100: 10, bodies: ['van', 'lighttruck', 'truck'] }
