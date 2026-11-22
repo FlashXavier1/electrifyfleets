@@ -24,7 +24,7 @@
 
   // ---------- state ----------
   function newGroup() {
-    return { count: '', type: 'van', fuel: 'diesel', kmPerDay: '', seats: '', daysPerWeek: String(cfg.defaultDaysPerWeek), fuelSpendMonthly: '' };
+    return { count: '', type: 'van', fuel: 'diesel', kmPerDay: '', seats: '', model: '', daysPerWeek: String(cfg.defaultDaysPerWeek), fuelSpendMonthly: '' };
   }
   var state = {
     depth: 'quick', step: 0, groups: [newGroup()],
@@ -96,6 +96,16 @@
       '</div></fieldset>';
   }
 
+  function modelOptions(g) {
+    var list = calc.candidates(g.type, cfg);
+    if (g.model && !list.some(function (m) { return m.name === g.model; })) g.model = '';
+    return '<option value="">Suggest one for me</option>' + list.map(function (m) {
+      var detail = m.body === 'passenger' ? m.seats + ' seats' : Math.round(m.batteryKwh) + ' kWh';
+      return '<option value="' + esc(m.name) + '"' + (m.name === g.model ? ' selected' : '') + '>' +
+        esc(m.name) + ', ' + detail + ', about ' + m.usableRangeKm + ' km</option>';
+    }).join('');
+  }
+
   function renderGroup(g, i, multi) {
     var p = 'g' + i + '_';
     var head = multi
@@ -111,6 +121,8 @@
       (g.type === 'passenger'
         ? selectField(p + 'seats', 'Passengers carried per vehicle', options({ '': 'Choose', 7: 'Up to 7', 15: '8 to 15' }, String(g.seats)))
         : '') +
+      selectField(p + 'model', 'Electric model', modelOptions(g),
+        'Leave on \u201cSuggest one for me\u201d and we pick the smallest model that covers the route.') +
       '<div class="field-pair">' +
       numberField(p + 'kmPerDay', 'Distance per vehicle per day (km)', g.kmPerDay, 'A typical working day.', 'min="1" step="1"') +
       selectField(p + 'daysPerWeek', 'Working days per week', options({ 5: '5 days', 6: '6 days', 7: '7 days' }, String(g.daysPerWeek))) +
@@ -273,10 +285,15 @@
     var rate = Number(input.elecRate) > 0 ? Number(input.elecRate) : cfg.electricityRate;
 
     var rows = r.groups.map(function (g) {
-      var share = Math.round(g.kmPerDay / g.model.usableRangeKm * 100);
+      var share = Math.round(g.chargeShare * 100);
+      var modelNote = g.chosenByCustomer
+        ? (g.suggested.name !== g.model.name && g.range !== 'fail' && g.suggested.price < g.model.price
+            ? 'Your choice. The ' + g.suggested.name + ' would also cover this route.'
+            : 'Your choice')
+        : 'Suggested';
       return '<tr><td data-label="Vehicles"><div>' + plural(g.count, 'vehicle') + '<span class="fine"> ' + esc(g.typeLabel) + ', ' + esc(g.fuelLabel.toLowerCase()) + '</span></div></td>' +
         '<td class="num" data-label="Daily distance">' + whole(g.kmPerDay) + ' km</td>' +
-        '<td data-label="Suggested model"><div>' + esc(g.model.name) +
+        '<td data-label="Model"><div>' + esc(g.model.name) + '<span class="fine"> ' + esc(modelNote) + '</span>' +
           (g.payloadOk ? '' : g.model.body === 'passenger'
             ? '<span class="fine status-fail"> Seats ' + g.model.seats + '; larger options on request</span>'
             : '<span class="fine status-fail"> Your load is above its ' + whole(g.model.payloadKg) + ' kg payload</span>') + '</div></td>' +
@@ -360,7 +377,7 @@
       ['Solar', state.depth === 'detailed' ? state.solar : 'Not asked'],
       ['Shifts', state.depth === 'detailed' ? state.shifts : 'Not asked'],
       ['Vehicle value at list', money(t.evPurchase)],
-      ['Models suggested', r.groups.map(function (g) { return g.count + ' \u00d7 ' + g.model.name; }).join(', ')],
+      ['Models', r.groups.map(function (g) { return g.count + ' \u00d7 ' + g.model.name + (g.chosenByCustomer ? ' (customer\u2019s choice)' : ''); }).join(', ')],
       ['Monthly payment on ' + cfg.finance.label, money(t.finance.evPayment)],
       ['Chargers', String(t.chargers)]
     ];
@@ -391,7 +408,7 @@
 
       financeBlock +
       '<div class="block"><h2>Your vehicles and their routes</h2>' +
-      '<div class="table-wrap"><table class="routes"><thead><tr><th>Vehicles</th><th class="num">Daily distance</th><th>Suggested model</th><th>Range check</th><th class="num">Saving per vehicle a year</th></tr></thead>' +
+      '<div class="table-wrap"><table class="routes"><thead><tr><th>Vehicles</th><th class="num">Daily distance</th><th>Model</th><th>Range check</th><th class="num">Saving per vehicle a year</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div></div>' +
 
       '<div class="block two-col"><div><h2>Charging</h2><dl class="facts">' +

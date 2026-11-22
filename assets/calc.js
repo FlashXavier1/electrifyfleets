@@ -61,7 +61,13 @@
 
     var payload = num(input.payloadKg, 0);
     var seats = num(g.seats, 0);
-    var model = pickModel(kmPerDay, payload, g.type, cfg, seats);
+    // Hills and highways use more energy, so the range check uses the
+    // route-adjusted distance.
+    var effectiveKm = kmPerDay * route.electric;
+    var suggested = pickModel(effectiveKm, payload, g.type, cfg, seats);
+    var chosen = null;
+    if (g.model) cfg.models.forEach(function (m) { if (m.name === g.model) chosen = m; });
+    var model = chosen || suggested;
     var rate = num(input.elecRate, cfg.electricityRate);
     var kwh = annualKm * model.kwhPer100 / 100 * route.electric;
     var energyCost = kwh * rate;
@@ -90,7 +96,10 @@
       annualKm: annualKm,
       fuelCostSource: statedFuelCost ? 'stated' : 'estimated',
       model: model,
-      range: rangeStatus(kmPerDay, model, cfg),
+      range: rangeStatus(effectiveKm, model, cfg),
+      chargeShare: effectiveKm / model.usableRangeKm,
+      chosenByCustomer: !!chosen,
+      suggested: suggested,
       payloadOk: model.body === 'passenger' ? !(seats > (model.seats || 0)) : !(payload > model.payloadKg),
       seats: seats,
       chargeOk: chargeHours <= cfg.overnightHours,
@@ -196,7 +205,7 @@
     };
   }
 
-  var api = { assess: assess, pickModel: pickModel, rangeStatus: rangeStatus };
+  var api = { assess: assess, pickModel: pickModel, rangeStatus: rangeStatus, candidates: candidates };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FleetCalc = api;
 })(typeof window !== 'undefined' ? window : this);
